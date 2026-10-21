@@ -4,8 +4,9 @@ mod one_vs_three;
 mod result;
 mod two_vs_two;
 
-pub use board::Board;
-pub use result::GameResult;
+pub use board::{AgentContext, Board, BoardState, Poll};
+pub use game::{BatchGame, Index};
+pub use result::{GameResult, KyokuResult};
 
 use crate::py_helper::add_submodule;
 use one_vs_three::OneVsThree;
