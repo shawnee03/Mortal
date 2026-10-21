@@ -23,8 +23,7 @@ use tinyvec::ArrayVec;
 /// Other than what is mentioned below, everything else is identical to Tenhou's
 /// Rule.
 ///
-/// 1. No triple-ron ryukyoku.
-/// 2. Tenhou (the yaku) and chihou do not accumulate with other yakus; they are
+/// 1. Tenhou (the yaku) and chihou do not accumulate with other yakus; they are
 ///    always 1x yakuman.
 #[derive(Debug, Default)]
 pub struct Board {
@@ -543,6 +542,31 @@ impl BoardState {
                 _ => 2,
             })
             .unwrap(); // Unwrap is safe because it is proven non-empty
+
+        // 三家和了: three players ron the same tile
+        if reactions
+            .iter()
+            .filter(|ev| matches!(ev.event, Event::Hora { .. }))
+            .count()
+            == 3
+        {
+            self.abortive_ryukyoku();
+            return Ok(Poll::End);
+        }
+
+        // 四家立直: the fourth riichi is accepted when its tile is not ron'd,
+        // and the hand ends there, before anyone calls the tile or draws
+        if self.accepted_riichis == 3
+            && self.riichi_to_be_accepted.is_some()
+            && matches!(
+                ev.event,
+                Event::None | Event::Chi { .. } | Event::Pon { .. } | Event::Daiminkan { .. }
+            )
+        {
+            self.check_riichi_accepted();
+            self.abortive_ryukyoku();
+            return Ok(Poll::End);
+        }
 
         if self.check_four_kan && !matches!(ev.event, Event::Hora { .. }) {
             // 四槓散了
