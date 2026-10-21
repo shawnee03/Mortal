@@ -1,5 +1,5 @@
 use super::{PlayerState, SinglePlayerTables};
-use crate::algo::agari::AgariCalculator;
+use crate::algo::agari::{Agari, AgariCalculator};
 use crate::algo::point::Point;
 use crate::algo::shanten;
 use crate::algo::sp::{InitState, SPCalculator};
@@ -375,14 +375,30 @@ impl PlayerState {
     ///
     /// `ura_indicators` is used only when the actor has an accepted riichi.
     pub fn agari_points(&self, is_ron: bool, ura_indicators: &[Tile]) -> Result<Point> {
+        self.agari_points_impl(is_ron, ura_indicators, false)
+    }
+
+    /// As `agari_points`, except that 天和 and 地和 combine with the hand's
+    /// other yakumans, as in Tenhou's rule (`agari_points`, which the
+    /// observation encoding uses, keeps them at 1x yakuman). Used by the arena.
+    pub fn agari_points_multi_yakuman(&self, is_ron: bool, ura_indicators: &[Tile]) -> Result<Point> {
+        self.agari_points_impl(is_ron, ura_indicators, true)
+    }
+
+    fn agari_points_impl(
+        &self,
+        is_ron: bool,
+        ura_indicators: &[Tile],
+        tenchi_multi_yakuman: bool,
+    ) -> Result<Point> {
         ensure!(
             is_ron && self.last_cans.can_ron_agari || self.last_cans.can_tsumo_agari,
             "cannot agari"
         );
 
-        // Here, 天和 and 地和 are handled individually as special cases, and
-        // there is no multi yakuman for these two.
-        if !is_ron && self.can_w_riichi {
+        // Here, 天和 and 地和 are handled individually as special cases.
+        let tenchi = !is_ron && self.can_w_riichi;
+        if tenchi && !tenchi_multi_yakuman {
             return Ok(Point::yakuman(self.oya == 0, 1));
         }
 
@@ -454,6 +470,13 @@ impl PlayerState {
             winning_tile: winning_tile.deaka().as_u8(),
             is_ron,
         };
+        if tenchi {
+            let others = match agari_calc.search_yakus() {
+                Some(Agari::Yakuman(n)) => n as i32,
+                _ => 0,
+            };
+            return Ok(Point::yakuman(self.oya == 0, 1 + others));
+        }
         let agari = agari_calc
             .agari(additional_hans, final_doras_owned)
             .context("not a hora hand")?;

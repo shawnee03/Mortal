@@ -1416,3 +1416,50 @@ fn chi_at_0_shanten() {
     assert!(ps.at_furiten);
     assert!(!ps.has_next_shanten_discard);
 }
+
+#[test]
+fn tenhou_chihou_multi_yakuman() {
+    let deal = |player_id: u8, hand: &str| {
+        let mut ps = PlayerState::new(player_id);
+        let mut tehais = [[t!(?); 13]; 4];
+        tehais[player_id as usize] = tile37_to_vec(&hand_with_aka(hand).unwrap())
+            .try_into()
+            .unwrap();
+        ps.test_update(&Event::StartKyoku {
+            bakaze: t!(E),
+            kyoku: 1,
+            honba: 0,
+            kyotaku: 0,
+            oya: 0,
+            scores: [25000; 4],
+            dora_marker: t!(9m),
+            tehais,
+        });
+        ps
+    };
+
+    // 天和 alone
+    let mut ps = deal(0, "123456m 789p 2345s");
+    let cans = ps.test_update(&Event::Tsumo { actor: 0, pai: t!(5s) });
+    assert!(cans.can_tsumo_agari);
+    assert_eq!(ps.agari_points(false, &[]).unwrap().tsumo_ko, 16000);
+    assert_eq!(ps.agari_points_multi_yakuman(false, &[]).unwrap().tsumo_ko, 16000);
+
+    // 天和 + 大三元: 2x in Tenhou's rule; `agari_points` keeps 1x
+    let mut ps = deal(0, "123m 55p 55566677z");
+    let cans = ps.test_update(&Event::Tsumo { actor: 0, pai: t!(C) });
+    assert!(cans.can_tsumo_agari);
+    assert_eq!(ps.agari_points(false, &[]).unwrap().tsumo_ko, 16000);
+    assert_eq!(ps.agari_points_multi_yakuman(false, &[]).unwrap().tsumo_ko, 32000);
+
+    // 地和 + 四暗刻
+    let mut ps = deal(1, "111m 333p 5557779s");
+    ps.test_update(&Event::Tsumo { actor: 0, pai: t!(?) });
+    ps.test_update(&Event::Dahai { actor: 0, pai: t!(N), tsumogiri: true });
+    let cans = ps.test_update(&Event::Tsumo { actor: 1, pai: t!(9s) });
+    assert!(cans.can_tsumo_agari);
+    let p = ps.agari_points_multi_yakuman(false, &[]).unwrap();
+    assert_eq!((p.tsumo_oya, p.tsumo_ko), (32000, 16000));
+    let p = ps.agari_points(false, &[]).unwrap();
+    assert_eq!((p.tsumo_oya, p.tsumo_ko), (16000, 8000));
+}

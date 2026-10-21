@@ -20,11 +20,7 @@ use tinyvec::ArrayVec;
 /// The fields are all pub on purpose so the caller will be able to set the
 /// yama, doras, scores directly.
 ///
-/// Other than what is mentioned below, everything else is identical to Tenhou's
-/// Rule.
-///
-/// 1. Tenhou (the yaku) and chihou do not accumulate with other yakus; they are
-///    always 1x yakuman.
+/// Everything is identical to Tenhou's Rule.
 #[derive(Debug, Default)]
 pub struct Board {
     /// Counts from 0
@@ -385,7 +381,8 @@ impl BoardState {
                 Event::Hora { actor, .. } => {
                     self.can_renchan |= actor == self.oya;
                     let point =
-                        self.player_states[actor as usize].agari_points(is_ron, &ura_indicators);
+                        self.player_states[actor as usize]
+                            .agari_points_multi_yakuman(is_ron, &ura_indicators);
                     Some(point).transpose()
                 }
                 _ => Ok(None),
